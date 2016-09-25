@@ -3,6 +3,7 @@
 #include<netinet/in.h>
 #include<string.h>
 #include<stdio.h>
+#include <unistd.h>
 
 #define BUF_LEN 1028
 #define SERVER_PORT 8080
@@ -50,14 +51,14 @@ void serve(int sockfd){
     }
 }
 
-void main() {
+int main() {
     int sockfd, err, newfd;
     struct sockaddr_in addr;
     //建立TCP套接字
     sockfd = socket(AF_INET, SOCK_STREAM, 0);
     if (sockfd < 0) {
         perror("socket creation failed!\n");
-        return;
+        return -1;
     }
     memset(&addr, 0, sizeof(addr));
     addr.sin_family = AF_INET;
@@ -67,7 +68,7 @@ void main() {
     addr.sin_addr.s_addr = INADDR_ANY;
     if (bind(sockfd, (struct sockaddr *) &addr, sizeof(struct sockaddr_in))) {
         perror("socket binding failed!\n");
-        return;
+        return -2;
     }
     listen(sockfd, 128);
     for (;;) {
@@ -76,4 +77,5 @@ void main() {
         serve(newfd);
         close(newfd);
     }
+    return 0;
 }
