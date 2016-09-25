@@ -1,8 +1,8 @@
-#include<sys/socket.h>
-#include<errno.h>
-#include<netinet/in.h>
-#include<string.h>
-#include<stdio.h>
+#include <sys/socket.h>
+#include <errno.h>
+#include <netinet/in.h>
+#include <string.h>
+#include <stdio.h>
 #include <unistd.h>
 
 #define BUF_LEN 1028
@@ -43,6 +43,7 @@ void serve(int sockfd){
         char *space = strchr(file, ' ');
         *space = '\0';
         http_send_file(file, sockfd);
+        return;
     }
     else{
         //其他HTTP请求处理，如POST，HEAD等 。这里我们只处理GET
