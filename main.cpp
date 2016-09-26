@@ -16,17 +16,17 @@
 #define FDSIZE      15000
 #define EPOLLEVENTS 100
 
-//定义好的html页面，实际情况下web server基本是从本地文件系统读取html文件
 const static char http_error_hdr[] = "HTTP/1.1 404 Not Found\r\nContent-type: text/html\r\n\r\n";
 const static char http_html_hdr[] = "HTTP/1.1 200 OK\r\nContent-type: text/html\r\n\r\n";
 const static char http_index_html[] =
-        "<html><head><title>Congrats!</title></head>"
-                "<body><h1>Welcome to our HTTP server demo!</h1>"
-                "<p>This is a just small test page.</body></html>";
+        "<html><head><title>This is Yicheng's mini project</title></head>"
+                "<body><h1>For DTL</h1>"
+                "<p>HTTP 1.1 SERVER</body></html>";
 
 //解析到HTTP请求的文件后，发送本地文件系统中的文件
 //这里，我们处理对index文件的请求，发送我们预定好的html文件
 //呵呵，一切从简！
+
 int http_send_file(char *filename, int sockfd)
 {
     if(!strcmp(filename, "/")){
@@ -43,9 +43,7 @@ int http_send_file(char *filename, int sockfd)
 }
 
 //HTTP请求解析
-void serve(int sockfd){
-    char buf[BUF_LEN];
-    read(sockfd, buf, BUF_LEN);
+void serve(char* buf, int sockfd){
     if(!strncmp(buf, "GET", 3)){
         char *file = buf + 4;
         char *space = strchr(file, ' ');
@@ -58,27 +56,6 @@ void serve(int sockfd){
         printf("unsupported request!\n");
         return;
     }
-}
-
-
-
-
-//写处理
-static void do_write(int epollfd,int fd,char *buf) {
-    int nwrite;
-    nwrite = write(fd,buf,strlen(buf));
-    if (nwrite == -1){
-        perror("write error:");
-        close(fd);   //记住close fd
-        struct epoll_event tmp;
-        tmp.events = EPOLLOUT;
-        epoll_ctl(epollfd, EPOLL_CTL_DEL, fd, &tmp);
-    }else{
-        struct epoll_event tmp;
-        tmp.events = EPOLLIN;
-        epoll_ctl(epollfd, EPOLL_CTL_DEL, fd, &tmp);
-    }
-    memset(buf,0,MAXSIZE);
 }
 
 static void add_event(int epollfd,int fd,int state){
@@ -120,23 +97,41 @@ static void do_read(int epollfd,int fd,char *buf){
     else {
         printf("read message is : %s",buf);
         //修改描述符对应的事件，由读改为写
-        modify_event(epollfd,fd,EPOLLOUT);
+        serve(buf, fd);
+        close(fd);
+        delete_event(epollfd,fd,EPOLLIN);
+//        modify_event(epollfd,fd,EPOLLOUT);
     }
 }
 
+static void do_write(int epollfd,int fd,char *buf) {
+    int nwrite;
+    nwrite = write(fd,buf,strlen(buf));
+    if (nwrite == -1){
+        perror("write error:");
+        close(fd);   //记住close fd
+        delete_event(epollfd,fd,EPOLLOUT);  //删除监听
+    }else{
+        modify_event(epollfd,fd,EPOLLIN);
+    }
+    memset(buf,0,MAXSIZE);
+}
+
 //处理接收到的连接
-static void handle_accpet(int epollfd,int listenfd){
+static void handle_accept(int epollfd,int listenfd){
     int clifd;
     struct sockaddr_in cliaddr;
     socklen_t  cliaddrlen;
     clifd = accept(listenfd,(struct sockaddr*)&cliaddr,&cliaddrlen);
     if (clifd == -1)
-        perror("accpet error:");
+        perror("accept error:");
     else {
         printf("accept a new client: %s:%d\n",inet_ntoa(cliaddr.sin_addr),cliaddr.sin_port);                       //添加一个客户描述符和事件
         add_event(epollfd,clifd,EPOLLIN);
     }
 }
+
+
 
 //事件处理函数
 static void handle_events(int epollfd,struct epoll_event *events,int num,int listenfd,char *buf)
@@ -149,7 +144,7 @@ static void handle_events(int epollfd,struct epoll_event *events,int num,int lis
         fd = events[i].data.fd;
         //根据描述符的类型和事件类型进行处理
         if ((fd == listenfd) &&(events[i].events & EPOLLIN))
-            handle_accpet(epollfd,listenfd);
+            handle_accept(epollfd,listenfd);
         else if (events[i].events & EPOLLIN)
             do_read(epollfd,fd,buf);
         else if (events[i].events & EPOLLOUT)
@@ -178,11 +173,11 @@ int main() {
     }
 
     // I am not sure whether the following part is needed.
-    if (!listen(sockfd, 128)) {
-        perror("prepare listening failed\n");
-        return -3;
-    };
-
+//    if (!listen(sockfd, 128)) {
+//        perror("prepare listening failed\n");
+//        return -3;
+//    };
+    listen(sockfd, 128);
     struct epoll_event events[EPOLLEVENTS];
 
     epollfd = epoll_create(FDSIZE);
@@ -194,7 +189,7 @@ int main() {
         //该函数返回已经准备好的描述符事件数目
         int ret = epoll_wait(epollfd,events,EPOLLEVENTS,-1);
         //处理接收到的连接
-        char buf[10000];
+        char buf[BUF_LEN];
         handle_events(epollfd,events,ret,sockfd,buf);
     }
 //    for (;;) {
