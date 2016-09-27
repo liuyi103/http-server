@@ -11,7 +11,7 @@
 #include <unordered_map>
 
 #define BUF_LEN 1028
-#define PORT 8080
+#define PORT 8081
 #define IPADDRESS   "127.0.0.1"
 #define MAXSIZE     1024
 #define LISTENQ     5
@@ -124,6 +124,7 @@ static void handle_accept(int epollfd,int listenfd){
     struct sockaddr_in cliaddr;
     socklen_t  cliaddrlen;
     clifd = accept(listenfd,(struct sockaddr*)&cliaddr,&cliaddrlen);
+    cout << clifd << endl;
     if (clifd == -1)
         perror("accept error:");
     else {
@@ -173,11 +174,6 @@ int main() {
         return -2;
     }
 
-    // I am not sure whether the following part is needed.
-//    if (!listen(sockfd, 128)) {
-//        perror("prepare listening failed\n");
-//        return -3;
-//    };
     listen(sockfd, 128);
     struct epoll_event events[EPOLLEVENTS];
 

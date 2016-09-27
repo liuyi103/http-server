@@ -6,3 +6,6 @@ include_directories(".")
 
 set(SOURCE_FILES main.cpp MyHTTPRequest.cpp MyHTTPRequest.h)
 add_executable(HTTPServer ${SOURCE_FILES})
+
+set(TEST_FILES smalltest.cpp MyHTTPRequest.cpp MyHTTPRequest.h)
+add_executable(smalltest ${TEST_FILES})
