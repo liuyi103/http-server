@@ -7,6 +7,8 @@
 #include <unistd.h>
 #include <netinet/in.h>
 #include <arpa/inet.h>
+#include <MyHTTPRequest.h>
+#include <unordered_map>
 
 #define BUF_LEN 1028
 #define PORT 8080
@@ -23,9 +25,7 @@ const static char http_index_html[] =
                 "<body><h1>For DTL</h1>"
                 "<p>HTTP 1.1 SERVER</body></html>";
 
-//解析到HTTP请求的文件后，发送本地文件系统中的文件
-//这里，我们处理对index文件的请求，发送我们预定好的html文件
-//呵呵，一切从简！
+unordered_map<int, MyHTTPRequest> latestRequest;
 
 int http_send_file(char *filename, int sockfd)
 {
@@ -98,6 +98,7 @@ static void do_read(int epollfd,int fd,char *buf){
         printf("read message is : %s",buf);
         //修改描述符对应的事件，由读改为写
         serve(buf, fd);
+        latestRequest[fd] = MyHTTPRequest(buf);
         close(fd);
         delete_event(epollfd,fd,EPOLLIN);
 //        modify_event(epollfd,fd,EPOLLOUT);
@@ -192,12 +193,4 @@ int main() {
         char buf[BUF_LEN];
         handle_events(epollfd,events,ret,sockfd,buf);
     }
-//    for (;;) {
-//        //不间断接收HTTP请求并处理，这里使用单线程，在实际情况下考虑到效率一般多线程
-//        newfd = accept(sockfd, NULL, NULL);
-//        serve(newfd);
-//        close(newfd);
-//    }
-//    return 0;
-
 }
