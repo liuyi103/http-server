@@ -6,15 +6,18 @@
 #include <stdio.h>
 #include <cstring>
 #include <iostream>
+#include <sstream>
 
 #define STRSIZE 1024
 
 MyHTTPRequest::MyHTTPRequest(char *buf) {
-    char request[STRSIZE], filename[STRSIZE], protocol[STRSIZE];
-    char *endline;
-    int signal = sscanf(buf, "%s %s %s\n", request, filename, protocol);
-    endline = strchr(buf, '\n');
-    buf = endline + 1;
+    char request[STRSIZE] = "", filename[STRSIZE] = "", protocol[STRSIZE] = "";
+    char firstLine[STRSIZE];
+    char key[STRSIZE], value[STRSIZE];
+    istringstream sin(buf);
+    sin.getline(firstLine, STRSIZE);
+    // use sscanf to avoid no filename or protocol.
+    int signal = sscanf(firstLine, "%s %s %s\n", request, filename, protocol);
     request_ = request;
     filename_ = filename;
     protocol_ = protocol;
@@ -23,35 +26,12 @@ MyHTTPRequest::MyHTTPRequest(char *buf) {
         cout << "incorrect request" << endl;
         return;
     }
-    while (true) {
-        if (strlen(endline) == 1) {
-            body_ = "";
-            break;
+    while (sin.getline(key, STRSIZE, ':')) {
+        if(key[0] == '\n') {
+            body_ = (key + 1);
+            return;
         }
-        char keyStr[STRSIZE], valueStr[STRSIZE];
-        signal = sscanf(buf, "%s %s\n", keyStr, valueStr);
-        if (signal == EOF) {
-            cout << "End of file" << endl;
-            break;
-        }
-        if (signal == 0) {
-            if (*buf == '\n') {
-                body_ = buf + 1;
-            } else {
-                perror("unusual format");
-            }
-            break;
-        }
-        endline = strchr(buf, '\n');
-        if (endline == nullptr) {
-            attributes_[static_cast<string>(keyStr)] = static_cast<string>(valueStr);
-            break;
-        }
-        if (*(endline + 1) == '\n') {
-            body_ = endline + 2;
-            break;
-        }
-        attributes_[static_cast<string>(keyStr)] = static_cast<string>(valueStr);
-        buf = endline + 1;
+        sin.getline(value, STRSIZE);
+        attributes_[key] = value;
     }
 }

@@ -9,6 +9,7 @@
 #include <arpa/inet.h>
 #include <MyHTTPRequest.h>
 #include <unordered_map>
+#include <myutils.h>
 
 #define BUF_LEN 1028
 #define PORT 8081
@@ -58,29 +59,6 @@ void serve(char* buf, int sockfd){
     }
 }
 
-static void add_event(int epollfd,int fd,int state){
-    struct epoll_event ev;
-    ev.events = state;
-    ev.data.fd = fd;
-    epoll_ctl(epollfd,EPOLL_CTL_ADD,fd,&ev);
-}
-
-//删除事件
-static void delete_event(int epollfd,int fd,int state) {
-    struct epoll_event ev;
-    ev.events = state;
-    ev.data.fd = fd;
-    epoll_ctl(epollfd,EPOLL_CTL_DEL,fd,&ev);
-}
-
-//修改事件
-static void modify_event(int epollfd,int fd,int state){
-    struct epoll_event ev;
-    ev.events = state;
-    ev.data.fd = fd;
-    epoll_ctl(epollfd,EPOLL_CTL_MOD,fd,&ev);
-}
-
 static void do_read(int epollfd,int fd,char *buf){
     int nread;
     nread = read(fd,buf,MAXSIZE);
@@ -118,24 +96,6 @@ static void do_write(int epollfd,int fd,char *buf) {
     memset(buf,0,MAXSIZE);
 }
 
-//处理接收到的连接
-static void handle_accept(int epollfd,int listenfd){
-    int clifd;
-    struct sockaddr_in cliaddr;
-    socklen_t  cliaddrlen;
-    clifd = accept(listenfd,(struct sockaddr*)&cliaddr,&cliaddrlen);
-    cout << clifd << endl;
-    if (clifd == -1)
-        perror("accept error:");
-    else {
-        printf("accept a new client: %s:%d\n",inet_ntoa(cliaddr.sin_addr),cliaddr.sin_port);                       //添加一个客户描述符和事件
-        add_event(epollfd,clifd,EPOLLIN);
-    }
-}
-
-
-
-//事件处理函数
 static void handle_events(int epollfd,struct epoll_event *events,int num,int listenfd,char *buf)
 {
     int i;
@@ -157,7 +117,6 @@ static void handle_events(int epollfd,struct epoll_event *events,int num,int lis
 int main() {
     int sockfd, err, newfd, epollfd;
     struct sockaddr_in addr;
-    //建立TCP套接字
     sockfd = socket(AF_INET, SOCK_STREAM, 0);
     if (sockfd < 0) {
         perror("socket creation failed!\n");
@@ -165,8 +124,6 @@ int main() {
     }
     memset(&addr, 0, sizeof(addr));
     addr.sin_family = AF_INET;
-    //这里要注意，端口号一定要使用htons先转化为网络字节序，否则绑定的实际端口
-    //可能和你需要的不同
     addr.sin_port = htons(PORT);
     addr.sin_addr.s_addr = INADDR_ANY;
     if (bind(sockfd, (struct sockaddr *) &addr, sizeof(struct sockaddr_in))) {
@@ -181,11 +138,8 @@ int main() {
 
     add_event(epollfd, sockfd, EPOLLIN);
 
-//循环等待
     for ( ; ; ){
-        //该函数返回已经准备好的描述符事件数目
         int ret = epoll_wait(epollfd,events,EPOLLEVENTS,-1);
-        //处理接收到的连接
         char buf[BUF_LEN];
         handle_events(epollfd,events,ret,sockfd,buf);
     }

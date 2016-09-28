@@ -4,11 +4,9 @@
 
 #include <MyHTTPRequest.h>
 #include <cstring>
+#include <sstream>
 
 int main() {
-    char keyStr[1000], value1[1000];
-    sscanf("Host: 127.0.0.1:8081\n", "%s %s\n", keyStr, value1);
-    cout << keyStr << " " << value1 << endl;
     char requestData[] = "GET / HTTP/1.1\n"
             "Host: 127.0.0.1:8081\n"
             "Connection: keep-alive\n"
