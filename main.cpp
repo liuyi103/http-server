@@ -19,45 +19,7 @@
 #define FDSIZE      15000
 #define EPOLLEVENTS 100
 
-const static char http_error_hdr[] = "HTTP/1.1 404 Not Found\r\nContent-type: text/html\r\n\r\n";
-const static char http_html_hdr[] = "HTTP/1.1 200 OK\r\nContent-type: text/html\r\n\r\n";
-const static char http_index_html[] =
-        "<html><head><title>This is Yicheng's mini project</title></head>"
-                "<body><h1>For DTL</h1>"
-                "<p>HTTP 1.1 SERVER</body></html>";
-
 unordered_map<int, MyHTTPRequest> latestRequest;
-
-int http_send_file(char *filename, int sockfd)
-{
-    if(!strcmp(filename, "/")){
-        //通过write函数发送http响应报文；报文包括HTTP响应头和响应内容--HTML文件
-        write(sockfd, http_html_hdr, strlen(http_html_hdr));
-        write(sockfd, http_index_html, strlen(http_index_html));
-    }
-    else{
-        // 文件未找到情况下发送404error响应
-        printf("%s:file not find!\n",filename);
-        write(sockfd, http_error_hdr, strlen(http_error_hdr));
-    }
-    return 0;
-}
-
-//HTTP请求解析
-void serve(char* buf, int sockfd){
-    if(!strncmp(buf, "GET", 3)){
-        char *file = buf + 4;
-        char *space = strchr(file, ' ');
-        *space = '\0';
-        http_send_file(file, sockfd);
-        return;
-    }
-    else{
-        //其他HTTP请求处理，如POST，HEAD等 。这里我们只处理GET
-        printf("unsupported request!\n");
-        return;
-    }
-}
 
 static void do_read(int epollfd,int fd,char *buf){
     int nread;
@@ -65,21 +27,21 @@ static void do_read(int epollfd,int fd,char *buf){
     if (nread == -1)     {
         perror("read error:");
         close(fd); //记住close fd
+        latestRequest.erase(fd);
         delete_event(epollfd,fd,EPOLLIN); //删除监听
     }
     else if (nread == 0)     {
         fprintf(stderr,"client close.\n");
         close(fd); //记住close fd
+        latestRequest.erase(fd);
         delete_event(epollfd,fd,EPOLLIN); //删除监听
     }
     else {
         printf("read message is : %s",buf);
         //修改描述符对应的事件，由读改为写
-        serve(buf, fd);
+//        serve(buf, fd);
         latestRequest[fd] = MyHTTPRequest(buf);
-        close(fd);
-        delete_event(epollfd,fd,EPOLLIN);
-//        modify_event(epollfd,fd,EPOLLOUT);
+        modify_event(epollfd,fd,EPOLLOUT);
     }
 }
 
@@ -89,6 +51,7 @@ static void do_write(int epollfd,int fd,char *buf) {
     if (nwrite == -1){
         perror("write error:");
         close(fd);   //记住close fd
+        latestRequest.erase(fd);
         delete_event(epollfd,fd,EPOLLOUT);  //删除监听
     }else{
         modify_event(epollfd,fd,EPOLLIN);
@@ -109,8 +72,10 @@ static void handle_events(int epollfd,struct epoll_event *events,int num,int lis
             handle_accept(epollfd,listenfd);
         else if (events[i].events & EPOLLIN)
             do_read(epollfd,fd,buf);
-        else if (events[i].events & EPOLLOUT)
+        else if (events[i].events & EPOLLOUT) {
+            strcpy(buf, generate_response(latestRequest[fd]).c_str());
             do_write(epollfd,fd,buf);
+        }
     }
 }
 

@@ -5,6 +5,7 @@
 #include <MyHTTPRequest.h>
 #include <cstring>
 #include <sstream>
+#include <myutils.h>
 
 int main() {
     char requestData[] = "GET / HTTP/1.1\n"
@@ -16,6 +17,6 @@ int main() {
             "Accept-Encoding: gzip, deflate, sdch\n"
             "Accept-Language: zh-CN,zh;q=0.8,en;q=0.6\n\nthis is body";
     MyHTTPRequest request(requestData);
-    cout << request.request_ << " " << request.attributes_.size() << " " << request.body_ << endl;
+    cout << generate_response(request) << endl;
     return 0;
 }
