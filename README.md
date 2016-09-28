@@ -19,7 +19,7 @@ features:
 
 ##Test plan
 
-Cmake HTTPServer;
+build the project with CMake;
 Start the server;
 Open a browser, visit 127.0.0.1:8080 (test GET, can open multiple tabs concurrently);
 Input "1" as password (test POST).
