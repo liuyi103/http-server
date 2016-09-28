@@ -11,8 +11,7 @@
 #include <unordered_map>
 #include <myutils.h>
 
-#define BUF_LEN 1028
-#define PORT 8081
+#define PORT 8080
 #define IPADDRESS   "127.0.0.1"
 #define MAXSIZE     1024
 #define LISTENQ     5
@@ -24,22 +23,21 @@ unordered_map<int, MyHTTPRequest> latestRequest;
 static void do_read(int epollfd,int fd,char *buf){
     int nread;
     nread = read(fd,buf,MAXSIZE);
+    cout << "\nThis is nread " << nread << endl;
     if (nread == -1)     {
         perror("read error:");
         close(fd); //记住close fd
-        latestRequest.erase(fd);
+//        latestRequest.erase(fd);
         delete_event(epollfd,fd,EPOLLIN); //删除监听
     }
     else if (nread == 0)     {
         fprintf(stderr,"client close.\n");
         close(fd); //记住close fd
-        latestRequest.erase(fd);
         delete_event(epollfd,fd,EPOLLIN); //删除监听
+        return;
     }
     else {
         printf("read message is : %s",buf);
-        //修改描述符对应的事件，由读改为写
-//        serve(buf, fd);
         latestRequest[fd] = MyHTTPRequest(buf);
         modify_event(epollfd,fd,EPOLLOUT);
     }
@@ -51,23 +49,22 @@ static void do_write(int epollfd,int fd,char *buf) {
     if (nwrite == -1){
         perror("write error:");
         close(fd);   //记住close fd
-        latestRequest.erase(fd);
         delete_event(epollfd,fd,EPOLLOUT);  //删除监听
     }else{
-        modify_event(epollfd,fd,EPOLLIN);
+        close(fd);   //记住close fd
+        delete_event(epollfd,fd,EPOLLOUT);  //删除监听
     }
     memset(buf,0,MAXSIZE);
 }
 
+// This function can't contain any output.
 static void handle_events(int epollfd,struct epoll_event *events,int num,int listenfd,char *buf)
 {
     int i;
     int fd;
-    //进行遍历;这里只要遍历已经准备好的io事件。num并不是当初epoll_create时的FDSIZE。
     for (i = 0;i < num;i++)
     {
         fd = events[i].data.fd;
-        //根据描述符的类型和事件类型进行处理
         if ((fd == listenfd) &&(events[i].events & EPOLLIN))
             handle_accept(epollfd,listenfd);
         else if (events[i].events & EPOLLIN)
@@ -96,16 +93,17 @@ int main() {
         return -2;
     }
 
-    listen(sockfd, 128);
+    listen(sockfd, 20);
     struct epoll_event events[EPOLLEVENTS];
 
     epollfd = epoll_create(FDSIZE);
 
     add_event(epollfd, sockfd, EPOLLIN);
 
+    setNonBlock(sockfd);
     for ( ; ; ){
         int ret = epoll_wait(epollfd,events,EPOLLEVENTS,-1);
-        char buf[BUF_LEN];
+        char buf[MAXSIZE];
         handle_events(epollfd,events,ret,sockfd,buf);
     }
 }

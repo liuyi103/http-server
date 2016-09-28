@@ -15,7 +15,7 @@ class MyHTTPRequest {
 public:
     map<string, string> attributes_;
     string request_;
-    string body_;
+    string thebody_;
     string filename_;
     string protocol_;
     time_t ts_;

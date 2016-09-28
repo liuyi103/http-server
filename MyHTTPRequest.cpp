@@ -27,11 +27,13 @@ MyHTTPRequest::MyHTTPRequest(char *buf) {
         return;
     }
     while (sin.getline(key, STRSIZE, ':')) {
-        if(key[0] == '\n') {
-            body_ = (key + 1);
+        if(key[0] == '\n' || key[1] == '\n') { // \r\n or \n
+            thebody_ = (key + 2);
+            cout << "body is "<< thebody_<<endl;
             return;
         }
         sin.getline(value, STRSIZE);
         attributes_[key] = value;
     }
+
 }
